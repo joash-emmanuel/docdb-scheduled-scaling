@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -28,7 +27,8 @@ var Instance_class = "db.t3.medium"
 var Current_number_of_instances int
 var Current_cluster_member_names = []string{}
 var Number_of_instances_to_add = 2
-var Metadata_for_deletion []byte
+var Number_of_instances_to_delete = 2
+var Temp_Instances = []string{}
 
 func createsession() aws.Config {
 
@@ -126,9 +126,7 @@ func add_instance(cfg aws.Config) {
 	}
 }
 
-func describe_db_instances(cfg aws.Config) (Metadata_json_conversion []byte) {
-	//create a map to feed the instance name for the temp-instance and the time it was created
-	instance_metadata := make(map[string]interface{})
+func describe_db_instances(cfg aws.Config) (Temp_Instances []string) {
 
 	//Import the Slice name of current instances from the describe_db_cluster function
 	_, Current_cluster_member_names := describe_db_cluster(cfg)
@@ -136,12 +134,12 @@ func describe_db_instances(cfg aws.Config) (Metadata_json_conversion []byte) {
 	//create a new docdb client based on the session created
 	docdb_client := docdb.NewFromConfig(cfg)
 
-	//Iterate through the cluster instance members, filter the members with the names they start with and get the time of creation for the instances
-	for _, temporary_created_nodes := range Current_cluster_member_names {
-		if strings.HasPrefix(temporary_created_nodes, "temp-instance") {
+	//Iterate through the cluster instance members, filter the members with the names temp-instance. Some type of iteration has been done here
+	for _, temporary_created_nodes_ids := range Current_cluster_member_names {
+		if strings.HasPrefix(temporary_created_nodes_ids, "temp-instance") {
 			describe_instances_output, err := docdb_client.DescribeDBInstances(context.TODO(), &docdb.DescribeDBInstancesInput{
 				//* If provided, must match the identifier of an existing DBInstance.
-				DBInstanceIdentifier: aws.String(temporary_created_nodes),
+				DBInstanceIdentifier: aws.String(temporary_created_nodes_ids),
 				Filters: []types.Filter{
 					{
 						Name:   aws.String("db-cluster-id"),
@@ -154,65 +152,40 @@ func describe_db_instances(cfg aws.Config) (Metadata_json_conversion []byte) {
 				panic(err)
 			}
 
-			//Get the time of instance creation
-			for _, Instance_information := range describe_instances_output.DBInstances {
-				// for _, status_of_instance := range time_of_creation.StatusInfos {
-
-				// if status_of_instance.StatusType == aws.String("read replication") {
-				key := temporary_created_nodes
-				value := Instance_information.InstanceCreateTime
-				instance_metadata[key] = value
-				// instance_metadata[temporary_created_nodes]=Instance_information.InstanceCreateTime
-				// }
+			for _, instance_names := range describe_instances_output.DBInstances {
+				Temp_Instances = append(Temp_Instances, aws.ToString(instance_names.DBInstanceIdentifier))
 			}
 
 		}
-
 	}
-
-	//convert the map to json
-	Metadata_for_deletion, err := json.Marshal(instance_metadata)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(Metadata_for_deletion))
 
 	return
 
 }
 
-var Number_of_instances_to_delete = 2
+func delete_instance(cfg aws.Config, Temp_Instances []string) {
 
-func delete_instance(cfg aws.Config, metadata_json_conversion []byte) {
-
-	metadata_json_conversion = describe_db_instances(cfg)
-
-	var deleteion_criteria_data map[string]interface{}
-	err := json.Unmarshal(Metadata_for_deletion, &deleteion_criteria_data)
-	if err != nil {
-		panic(err)
-	}
-
-	// Loop through the keys
-	for instance_name, creation_time := range deleteion_criteria_data {
-		fmt.Printf("%s: %v\n", instance_name, creation_time)
-
-	}
+	Temp_Instances = describe_db_instances(cfg)
 
 	for i := 0; i < Number_of_instances_to_delete; i++ {
 
-		//create a new docdb client based on the session created
-		docdb_client := docdb.NewFromConfig(cfg)
+		for _, instance_to_be_deleted := range Temp_Instances {
 
-		//    * Must match the name of an existing instance.
+			//create a new docdb client based on the session created
+			docdb_client := docdb.NewFromConfig(cfg)
 
-		delete_instance_output, err := docdb_client.DeleteDBInstance(context.TODO(), &docdb.DeleteDBInstanceInput{
-			DBInstanceIdentifier: aws.String(""),
-		})
+			//    * Must match the name of an existing instance.
 
-		if err != nil {
-			panic(err)
+			delete_instance_output, err := docdb_client.DeleteDBInstance(context.TODO(), &docdb.DeleteDBInstanceInput{
+				DBInstanceIdentifier: aws.String(instance_to_be_deleted),
+			})
+
+			if err != nil {
+				panic(err)
+			}
+
+			deleted_instance_name := aws.ToString(delete_instance_output.DBInstance.DBInstanceIdentifier)
+			fmt.Printf("Instance %v is being deleted", deleted_instance_name)
 		}
 
 	}
