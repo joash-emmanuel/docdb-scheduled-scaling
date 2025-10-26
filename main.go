@@ -21,13 +21,13 @@ func main() {
 	describe_db_instances(cfg)
 }
 
-var Instance_name_prefix = "temp-instance"
 var Cluster_identifier = "eu-west-1-test-cluster-1"
 var Instance_class = "db.t3.medium"
-var Current_number_of_instances int
-var Current_cluster_member_names = []string{}
 var Number_of_instances_to_add = 2
 var Number_of_instances_to_delete = 2
+var Instance_name_prefix = "temp-instance"
+var Current_number_of_instances int
+var Current_cluster_member_names = []string{}
 var Temp_Instances = []string{}
 
 func createsession() aws.Config {
