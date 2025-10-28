@@ -18,12 +18,13 @@ import (
 func main() {
 	cfg := createsession()
 	// add_instance(cfg)
-	describe_db_instances(cfg)
+	// describe_db_instances(cfg)
+	delete_instance(cfg)
 }
 
 var Cluster_identifier = "eu-west-1-test-cluster-1"
 var Instance_class = "db.t3.medium"
-var Number_of_instances_to_add = 2
+var Number_of_instances_to_add = 3
 var Number_of_instances_to_delete = 2
 var Instance_name_prefix = "temp-instance"
 var Current_number_of_instances int
@@ -153,41 +154,50 @@ func describe_db_instances(cfg aws.Config) (Temp_Instances []string) {
 			}
 
 			for _, instance_names := range describe_instances_output.DBInstances {
-				Temp_Instances = append(Temp_Instances, aws.ToString(instance_names.DBInstanceIdentifier))
+				availability_status := aws.ToString(instance_names.DBInstanceStatus) //Get the availability status of the instances
+				// fmt.Println(availability_status) 	//status of instances = creating, available, deleting
+				if availability_status == "available" {
+					Temp_Instances = append(Temp_Instances, aws.ToString(instance_names.DBInstanceIdentifier))
+				}
+
 			}
 
 		}
+
+	}
+
+	// Only print once at the end if nothing was added
+	if len(Temp_Instances) == 0 {
+		log.Panic("No instances to be deleted")
 	}
 
 	return
-
 }
 
-func delete_instance(cfg aws.Config, Temp_Instances []string) {
+func delete_instance(cfg aws.Config) {
 
-	Temp_Instances = describe_db_instances(cfg)
+	//create a new docdb client based on the session created
+	docdb_client := docdb.NewFromConfig(cfg)
 
 	for i := 0; i < Number_of_instances_to_delete; i++ {
 
-		for _, instance_to_be_deleted := range Temp_Instances {
+		Temp_Instances := describe_db_instances(cfg)
 
-			//create a new docdb client based on the session created
-			docdb_client := docdb.NewFromConfig(cfg)
+		//for _, instance_to_be_deleted := range Temp_Instances { //deletes all the instances as i have passed all the instance ids to instance to be deleted
 
-			//    * Must match the name of an existing instance.
+		instance_to_be_deleted := Temp_Instances[i] //deletes one by one based on how many times to for loop runs
 
-			delete_instance_output, err := docdb_client.DeleteDBInstance(context.TODO(), &docdb.DeleteDBInstanceInput{
-				DBInstanceIdentifier: aws.String(instance_to_be_deleted),
-			})
+		//    * Must match the name of an existing instance.
+		delete_instance_output, err := docdb_client.DeleteDBInstance(context.TODO(), &docdb.DeleteDBInstanceInput{
+			DBInstanceIdentifier: aws.String(instance_to_be_deleted),
+		})
 
-			if err != nil {
-				panic(err)
-			}
-
-			deleted_instance_name := aws.ToString(delete_instance_output.DBInstance.DBInstanceIdentifier)
-			fmt.Printf("Instance %v is being deleted", deleted_instance_name)
+		if err != nil {
+			panic(err)
 		}
 
+		deleted_instance_name := aws.ToString(delete_instance_output.DBInstance.DBInstanceIdentifier)
+		fmt.Printf("Instance %v is being deleted\n", deleted_instance_name)
+		//}
 	}
-
 }
