@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/docdb/types"
 )
 
-//filters = https://stackoverflow.com/questions/54026903/filter-aws-resources-using-regex-in-aws-sdk-go
+//sdk -- https://docs.aws.amazon.com/sdk-for-go/api/service/docdb/
 
 func main() {
 	cfg := createsession()
