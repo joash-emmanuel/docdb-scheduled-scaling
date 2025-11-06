@@ -22,7 +22,7 @@ func main() {
 	delete_instance(cfg)
 }
 
-var Cluster_identifier = "eu-west-1-test-cluster-1"
+var Cluster_identifier = "us-west-1-test-cluster-1"
 var Instance_class = "db.t3.medium"
 var Number_of_instances_to_add = 3
 var Number_of_instances_to_delete = 2
@@ -85,7 +85,7 @@ func describe_db_cluster(cfg aws.Config) (Current_number_of_instances int, Curre
 
 func add_instance(cfg aws.Config) {
 
-	for i := 0; i < Number_of_instances_to_add; i++ {
+	for i := 0; i < Number_of_instances_to_add; i++ { //adds the instances one by one. This enables us to check the current number and see if we can add or have hit the limit
 
 		//Import the int current number of instances from the describe_db_cluster function
 		Current_number_of_instances, _ := describe_db_cluster(cfg)
