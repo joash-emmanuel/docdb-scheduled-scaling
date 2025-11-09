@@ -14,6 +14,7 @@ import (
 )
 
 //sdk -- https://docs.aws.amazon.com/sdk-for-go/api/service/docdb/
+//filters = https://stackoverflow.com/questions/54026903/filter-aws-resources-using-regex-in-aws-sdk-go
 
 func main() {
 	cfg := createsession()
